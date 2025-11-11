@@ -1,0 +1,102 @@
+-- Database schema for Shree Ranga Traders
+
+-- Create database
+CREATE DATABASE IF NOT EXISTS shreerangatraders;
+USE shreerangatraders;
+
+-- Customer table
+CREATE TABLE IF NOT EXISTS customer (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(255) UNIQUE NOT NULL,
+    contact VARCHAR(100),
+    address VARCHAR(500),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Shop table
+CREATE TABLE IF NOT EXISTS shop (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    shop_name VARCHAR(255) UNIQUE NOT NULL,
+    contact VARCHAR(100),
+    address VARCHAR(500),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Item table
+CREATE TABLE IF NOT EXISTS item (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    item_name VARCHAR(255) UNIQUE NOT NULL,
+    unit VARCHAR(50),
+    default_price DECIMAL(10, 2),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Purchase table
+CREATE TABLE IF NOT EXISTS purchase (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    purchase_date DATE NOT NULL,
+    shop_name VARCHAR(255) NOT NULL,
+    bags INT NOT NULL,
+    items VARCHAR(500) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    discount DECIMAL(10, 2) DEFAULT 0,
+    net_amount DECIMAL(10, 2) GENERATED ALWAYS AS (amount - discount) STORED,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Sales table
+CREATE TABLE IF NOT EXISTS sales (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sale_date DATE NOT NULL,
+    customer_name VARCHAR(255) NOT NULL,
+    item VARCHAR(255) NOT NULL,
+    bags INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_type ENUM('CREDIT', 'CASH') NOT NULL,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Sales payment table
+CREATE TABLE IF NOT EXISTS salespayment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(255) UNIQUE NOT NULL,
+    balance_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Payment history table
+CREATE TABLE IF NOT EXISTS payment_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(255) NOT NULL,
+    type ENUM('SALE', 'PAYMENT', 'ADJUSTMENT') NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    balance_after DECIMAL(10, 2) NOT NULL,
+    note VARCHAR(500),
+    payment_date DATE NOT NULL,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Payment table (for shop payments)
+CREATE TABLE IF NOT EXISTS payment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    shop_name VARCHAR(255) UNIQUE NOT NULL,
+    balance_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Purchase payment history table
+CREATE TABLE IF NOT EXISTS purchasepayment_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    shop_name VARCHAR(255) NOT NULL,
+    type ENUM('PURCHASE', 'PAYMENT', 'ADJUSTMENT') NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    balance_after DECIMAL(10, 2) NOT NULL,
+    note VARCHAR(500),
+    payment_date DATE NOT NULL,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
