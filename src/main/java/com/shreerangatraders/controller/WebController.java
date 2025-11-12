@@ -30,4 +30,9 @@ public class WebController {
     public String purchasePaymentsView() {
         return "purchase-payments";
     }
+
+    @GetMapping("/master-data")
+    public String masterDataView() {
+        return "master-data";
+    }
 }

@@ -31,6 +31,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/purchase-payments">Purchase Payments</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/master-data">Master Data</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -57,7 +60,9 @@
                                 <div class="col-md-3">
                                     <div class="mb-3">
                                         <label for="customerName" class="form-label">Customer Name *</label>
-                                        <input type="text" class="form-control" id="customerName" required>
+                                        <select class="form-select" id="customerName" required>
+                                            <option value="">Select Customer</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
@@ -165,9 +170,25 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadBalances();
             loadHistory();
+            loadCustomers();
             // Set today's date as default
             document.getElementById('paymentDate').valueAsDate = new Date();
         });
+
+        // Load customers for dropdown
+        async function loadCustomers() {
+            try {
+                const response = await fetch('/api/customers');
+                const customers = await response.json();
+                const customerSelect = document.getElementById('customerName');
+                customerSelect.innerHTML = '<option value="">Select Customer</option>';
+                customers.forEach(customer => {
+                    customerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading customers:', error);
+            }
+        }
 
         // Payment form submission
         document.getElementById('paymentForm').addEventListener('submit', async function(e) {
