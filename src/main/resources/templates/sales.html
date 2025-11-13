@@ -132,7 +132,9 @@
                             </div>
                             <div class="col-md-3">
                                 <label for="searchCustomerName" class="form-label">Customer Name</label>
-                                <input type="text" class="form-control" id="searchCustomerName">
+                                <select class="form-select" id="searchCustomerName">
+                                    <option value="">Select Customer</option>
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">&nbsp;</label>
@@ -142,6 +144,9 @@
                                     </button>
                                     <button type="button" class="btn btn-secondary" id="resetBtn">
                                         <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="exportPdfBtn">
+                                        <i class="fas fa-file-pdf"></i> Export to PDF
                                     </button>
                                 </div>
                             </div>
@@ -163,7 +168,6 @@
                             <table class="table table-striped table-hover">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>ID</th>
                                         <th>Date</th>
                                         <th>Customer Name</th>
                                         <th>Item</th>
@@ -178,7 +182,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="table-info fw-bold">
-                                        <td colspan="4" class="text-end">TOTALS:</td>
+                                        <td colspan="3" class="text-end">TOTALS:</td>
                                         <td id="totalBags">0</td>
                                         <td id="totalAmount">0.00</td>
                                         <td colspan="2"></td>
@@ -187,6 +191,43 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Totals Summary Modal -->
+    <div class="modal fade" id="totalsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Search Summary</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 id="modalCustomerName" class="text-primary mb-3"></h6>
+                    <h6 id="modalDateRange" class="text-secondary mb-3"></h6>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Total Bags</h6>
+                                    <h3 class="text-primary" id="modalTotalBags">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Total Amount</h6>
+                                    <h3 class="text-success" id="modalTotalAmount">₹0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -215,6 +256,7 @@
     <script>
         let deleteId = null;
         const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        const totalsModal = new bootstrap.Modal(document.getElementById('totalsModal'));
 
         // Load sales on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -231,9 +273,14 @@
                 const response = await fetch('/api/customers');
                 const customers = await response.json();
                 const customerSelect = document.getElementById('customerName');
+                const searchCustomerSelect = document.getElementById('searchCustomerName');
+
                 customerSelect.innerHTML = '<option value="">Select Customer</option>';
+                searchCustomerSelect.innerHTML = '<option value="">Select Customer</option>';
+
                 customers.forEach(customer => {
                     customerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
+                    searchCustomerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
                 });
             } catch (error) {
                 console.error('Error loading customers:', error);
@@ -309,15 +356,66 @@
                 const response = await fetch(url);
                 const sales = await response.json();
                 displaySales(sales);
+
+                // Show totals modal if searching with date range AND customer name
+                if ((startDate || endDate) && customerName) {
+                    showTotalsModal(sales, startDate, endDate, customerName);
+                }
             } catch (error) {
                 console.error('Error:', error);
             }
         });
 
+        // Show totals modal
+        function showTotalsModal(sales, startDate, endDate, customerName) {
+            let totalBags = 0;
+            let totalAmount = 0;
+
+            sales.forEach(sale => {
+                totalBags += sale.bags;
+                totalAmount += sale.amount;
+            });
+
+            // Set modal content
+            document.getElementById('modalCustomerName').textContent = `Customer: ${customerName}`;
+
+            let dateRangeText = 'Date Range: ';
+            if (startDate && endDate) {
+                dateRangeText += `${formatDate(startDate)} to ${formatDate(endDate)}`;
+            } else if (startDate) {
+                dateRangeText += `From ${formatDate(startDate)}`;
+            } else if (endDate) {
+                dateRangeText += `Until ${formatDate(endDate)}`;
+            } else {
+                dateRangeText += 'All Dates';
+            }
+            document.getElementById('modalDateRange').textContent = dateRangeText;
+
+            document.getElementById('modalTotalBags').textContent = totalBags;
+            document.getElementById('modalTotalAmount').textContent = `₹${totalAmount.toFixed(2)}`;
+
+            totalsModal.show();
+        }
+
         // Reset button
         document.getElementById('resetBtn').addEventListener('click', function() {
             document.getElementById('searchForm').reset();
             loadRecentSales();
+        });
+
+        // Export to PDF button
+        document.getElementById('exportPdfBtn').addEventListener('click', function() {
+            const startDate = document.getElementById('searchStartDate').value;
+            const endDate = document.getElementById('searchEndDate').value;
+            const customerName = document.getElementById('searchCustomerName').value;
+
+            let url = '/api/sales/export/pdf?';
+            if (startDate) url += `startDate=${startDate}&`;
+            if (endDate) url += `endDate=${endDate}&`;
+            if (customerName) url += `customerName=${customerName}&`;
+
+            // Open PDF in new window/tab for download
+            window.open(url, '_blank');
         });
 
         // Load recent sales
@@ -348,7 +446,6 @@
 
                 const row = `
                     <tr>
-                        <td>${sale.id}</td>
                         <td>${formatDate(sale.saleDate)}</td>
                         <td>${sale.customerName}</td>
                         <td>${sale.item}</td>

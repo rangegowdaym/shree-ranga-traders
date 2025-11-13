@@ -1,13 +1,17 @@
 package com.shreerangatraders.controller;
 
 import com.shreerangatraders.entity.Sales;
+import com.shreerangatraders.service.PdfExportService;
 import com.shreerangatraders.service.SalesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -16,7 +20,8 @@ import java.util.List;
 public class SalesController {
     
     private final SalesService salesService;
-    
+    private final PdfExportService pdfExportService;
+
     @PostMapping
     public ResponseEntity<Sales> createSale(@RequestBody Sales sale) {
         Sales created = salesService.createSale(sale);
@@ -54,5 +59,26 @@ public class SalesController {
             @RequestParam(required = false) String customerName) {
         List<Sales> sales = salesService.searchSales(startDate, endDate, customerName);
         return ResponseEntity.ok(sales);
+    }
+
+    @GetMapping("/export/pdf")
+    public ResponseEntity<byte[]> exportSalesToPdf(
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+            @RequestParam(required = false) String customerName) {
+
+        List<Sales> sales = salesService.searchSales(startDate, endDate, customerName);
+        byte[] pdfBytes = pdfExportService.generateSalesPdf(sales, customerName, startDate, endDate);
+
+        String filename = "sales_report_" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".pdf";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }
