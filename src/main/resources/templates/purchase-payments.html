@@ -52,10 +52,11 @@
             <div class="col-md-12">
                 <div class="card">
                     <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0">Record Payment</h5>
+                        <h5 class="mb-0" id="paymentFormTitle">Record Payment</h5>
                     </div>
                     <div class="card-body">
                         <form id="paymentForm">
+                            <input type="hidden" id="paymentId">
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="mb-3">
@@ -86,8 +87,8 @@
                                 <div class="col-md-2">
                                     <div class="mb-3">
                                         <label class="form-label">&nbsp;</label>
-                                        <button type="submit" class="btn btn-success w-100">
-                                            <i class="fas fa-money-bill"></i> Record Payment
+                                        <button type="submit" class="btn btn-success w-100" id="submitPaymentBtn">
+                                            <i class="fas fa-money-bill"></i> <span id="submitBtnText">Record Payment</span>
                                         </button>
                                     </div>
                                 </div>
@@ -98,29 +99,48 @@
             </div>
         </div>
 
-        <!-- Shop Balances Table -->
+        <!-- Search Payment History Section -->
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Shop Balances</h5>
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-search"></i> Search Payment History</h5>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Shop Name</th>
-                                        <th>Balance Amount</th>
-                                        <th>Last Updated</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="balancesTableBody">
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
+                        <form id="searchForm" class="row g-3">
+                            <div class="col-md-4">
+                                <label for="searchShopName" class="form-label">Shop Name</label>
+                                <select class="form-select" id="searchShopName">
+                                    <option value="">Select Shop</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-search"></i> Search
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="resetSearchBtn">
+                                        <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Shop Balance Display (shown when shop is selected) -->
+                        <div id="shopBalanceCard" class="mt-3" style="display: none;">
+                            <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-store"></i> Shop: <span id="displayShopName" class="fw-bold"></span>
+                                    </h5>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0">
+                                        Balance: <span id="displayBalanceAmount" class="badge bg-danger"></span>
+                                    </h4>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -131,11 +151,8 @@
         <div class="row">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <div class="card-header bg-secondary text-white">
                         <h5 class="mb-0">Payment History</h5>
-                        <button class="btn btn-sm btn-light" id="clearFilterBtn">
-                            <i class="fas fa-filter-circle-xmark"></i> Clear Filter
-                        </button>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -149,6 +166,7 @@
                                         <th>Balance After</th>
                                         <th>Date</th>
                                         <th>Note</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="historyTableBody">
@@ -162,13 +180,33 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete this payment? This will update the shop balance accordingly.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let selectedShop = null;
+        let deletePaymentId = null;
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
-            loadBalances();
             loadHistory();
             loadShops();
             // Set today's date as default
@@ -181,9 +219,14 @@
                 const response = await fetch('/api/shops');
                 const shops = await response.json();
                 const shopSelect = document.getElementById('shopName');
+                const searchShopSelect = document.getElementById('searchShopName');
+
                 shopSelect.innerHTML = '<option value="">Select Shop</option>';
+                searchShopSelect.innerHTML = '<option value="">Select Shop</option>';
+
                 shops.forEach(shop => {
                     shopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
+                    searchShopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
                 });
             } catch (error) {
                 console.error('Error loading shops:', error);
@@ -193,26 +236,37 @@
         // Payment form submission
         document.getElementById('paymentForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
+            const paymentId = document.getElementById('paymentId').value;
             const paymentData = {
-                shopName: document.getElementById('shopName').value,
                 amount: parseFloat(document.getElementById('amount').value),
                 paymentDate: document.getElementById('paymentDate').value,
                 note: document.getElementById('note').value
             };
 
+            // Add shopName only for new payments
+            if (!paymentId) {
+                paymentData.shopName = document.getElementById('shopName').value;
+            }
+
+            const url = paymentId ? `/api/purchase-payments/payment/${paymentId}` : '/api/purchase-payments/payment';
+            const method = paymentId ? 'PUT' : 'POST';
+
             try {
-                const response = await fetch('/api/purchase-payments/payment', {
-                    method: 'POST',
+                const response = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(paymentData)
                 });
 
                 if (response.ok) {
-                    resetForm();
-                    loadBalances();
+                    resetPaymentForm();
                     loadHistory();
-                    alert('Payment recorded successfully!');
+                    alert(paymentId ? 'Payment updated successfully!' : 'Payment recorded successfully!');
+                    // Reload balance card if a shop is selected
+                    if (selectedShop) {
+                        await showShopBalance(selectedShop);
+                    }
                 } else {
                     alert('Error recording payment');
                 }
@@ -222,45 +276,10 @@
             }
         });
 
-        // Load balances
-        async function loadBalances() {
-            try {
-                const response = await fetch('/api/purchase-payments/balances');
-                const balances = await response.json();
-                displayBalances(balances);
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
-
-        // Display balances
-        function displayBalances(balances) {
-            const tbody = document.getElementById('balancesTableBody');
-            tbody.innerHTML = '';
-
-            balances.forEach(balance => {
-                const balanceClass = balance.balanceAmount > 0 ? 'text-danger' : 'text-success';
-                const row = `
-                    <tr style="cursor: pointer;" onclick="filterByShop('${balance.shopName}')">
-                        <td>${balance.id}</td>
-                        <td>${balance.shopName}</td>
-                        <td class="${balanceClass} fw-bold">${balance.balanceAmount.toFixed(2)}</td>
-                        <td>${formatDateTime(balance.lastUpdated)}</td>
-                        <td>
-                            <button class="btn btn-sm btn-info" onclick="selectShopForPayment('${balance.shopName}', event)">
-                                <i class="fas fa-hand-holding-dollar"></i> Pay
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
-        }
-
         // Load history
         async function loadHistory(shopName = null) {
             try {
-                const url = shopName 
+                const url = shopName
                     ? `/api/purchase-payments/history/${encodeURIComponent(shopName)}`
                     : '/api/purchase-payments/history';
                 const response = await fetch(url);
@@ -286,15 +305,31 @@
                     typeBadge = '<span class="badge bg-info">ADJUSTMENT</span>';
                 }
 
+                // Show edit/delete buttons only for PAYMENT type
+                let actionButtons = '';
+                if (record.type === 'PAYMENT') {
+                    actionButtons = `
+                        <button class="btn btn-sm btn-primary" onclick="editPayment(${record.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deletePayment(${record.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                } else {
+                    actionButtons = '<span class="text-muted">-</span>';
+                }
+
                 const row = `
                     <tr>
                         <td>${record.id}</td>
                         <td>${record.shopName}</td>
                         <td>${typeBadge}</td>
-                        <td>${record.amount.toFixed(2)}</td>
-                        <td>${record.balanceAfter.toFixed(2)}</td>
+                        <td>₹${record.amount.toFixed(2)}</td>
+                        <td>₹${record.balanceAfter.toFixed(2)}</td>
                         <td>${formatDate(record.paymentDate)}</td>
                         <td>${record.note || ''}</td>
+                        <td>${actionButtons}</td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
@@ -302,28 +337,132 @@
         }
 
         // Filter by shop
-        function filterByShop(shopName) {
+        async function filterByShop(shopName) {
             selectedShop = shopName;
-            loadHistory(shopName);
+            await loadHistory(shopName);
+            await showShopBalance(shopName);
         }
 
-        // Clear filter
-        document.getElementById('clearFilterBtn').addEventListener('click', function() {
+        // Show shop balance
+        async function showShopBalance(shopName) {
+            try {
+                const response = await fetch('/api/purchase-payments/balances');
+                const balances = await response.json();
+                const shopBalance = balances.find(b => b.shopName === shopName);
+
+                if (shopBalance) {
+                    document.getElementById('displayShopName').textContent = shopName;
+                    const balanceAmount = shopBalance.balanceAmount;
+                    const balanceSpan = document.getElementById('displayBalanceAmount');
+                    balanceSpan.textContent = '₹' + balanceAmount.toFixed(2);
+
+                    // Update badge color based on balance
+                    balanceSpan.className = 'badge ' + (balanceAmount > 0 ? 'bg-danger' : 'bg-success');
+
+                    document.getElementById('shopBalanceCard').style.display = 'block';
+                } else {
+                    hideShopBalance();
+                }
+            } catch (error) {
+                console.error('Error loading shop balance:', error);
+            }
+        }
+
+        // Hide shop balance
+        function hideShopBalance() {
+            document.getElementById('shopBalanceCard').style.display = 'none';
+        }
+
+        // Search form submission
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const shopName = document.getElementById('searchShopName').value;
+
+            if (shopName) {
+                await filterByShop(shopName);
+            } else {
+                alert('Please select a shop to search');
+            }
+        });
+
+        // Reset search
+        document.getElementById('resetSearchBtn').addEventListener('click', function() {
+            document.getElementById('searchForm').reset();
             selectedShop = null;
+            hideShopBalance();
             loadHistory();
         });
 
-        // Select shop for payment
-        function selectShopForPayment(shopName, event) {
-            event.stopPropagation();
-            document.getElementById('shopName').value = shopName;
-            document.getElementById('amount').focus();
+        // Edit payment
+        async function editPayment(id) {
+            try {
+                const response = await fetch(`/api/purchase-payments/payment/${id}`);
+                const payment = await response.json();
+
+                document.getElementById('paymentId').value = payment.id;
+                document.getElementById('shopName').value = payment.shopName;
+                document.getElementById('shopName').disabled = true; // Disable shop change when editing
+                document.getElementById('amount').value = payment.amount;
+                document.getElementById('paymentDate').value = payment.paymentDate;
+                document.getElementById('note').value = payment.note || '';
+
+                // Update form title and button
+                document.getElementById('paymentFormTitle').textContent = 'Edit Payment';
+                document.getElementById('submitBtnText').textContent = 'Update Payment';
+                document.getElementById('submitPaymentBtn').className = 'btn btn-warning w-100';
+
+                // Scroll to form
+                document.getElementById('paymentForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (error) {
+                console.error('Error loading payment:', error);
+                alert('Error loading payment details');
+            }
         }
 
-        // Reset form
-        function resetForm() {
+        // Delete payment
+        function deletePayment(id) {
+            deletePaymentId = id;
+            deleteModal.show();
+        }
+
+        // Confirm delete
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+            if (deletePaymentId) {
+                try {
+                    const response = await fetch(`/api/purchase-payments/payment/${deletePaymentId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        deleteModal.hide();
+                        loadHistory();
+                        alert('Payment deleted successfully!');
+                        // Reload balance card if a shop is selected
+                        if (selectedShop) {
+                            await showShopBalance(selectedShop);
+                        }
+                    } else {
+                        const errorText = await response.text();
+                        alert('Error deleting payment: ' + errorText);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error deleting payment');
+                }
+            }
+        });
+
+        // Reset payment form
+        function resetPaymentForm() {
             document.getElementById('paymentForm').reset();
+            document.getElementById('paymentId').value = '';
+            document.getElementById('shopName').disabled = false;
             document.getElementById('paymentDate').valueAsDate = new Date();
+
+            // Reset form title and button
+            document.getElementById('paymentFormTitle').textContent = 'Record Payment';
+            document.getElementById('submitBtnText').textContent = 'Record Payment';
+            document.getElementById('submitPaymentBtn').className = 'btn btn-success w-100';
         }
 
         // Format date
@@ -349,3 +488,4 @@
     </script>
 </body>
 </html>
+

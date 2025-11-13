@@ -10,6 +10,7 @@ import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.shreerangatraders.entity.Sales;
+import com.shreerangatraders.entity.Purchase;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -144,5 +145,141 @@ public class PdfExportService {
 
         return baos.toByteArray();
     }
-}
 
+    public byte[] generatePurchasesPdf(List<Purchase> purchasesList, String shopName, LocalDate startDate, LocalDate endDate) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        try {
+            PdfWriter writer = new PdfWriter(baos);
+            PdfDocument pdfDoc = new PdfDocument(writer);
+            Document document = new Document(pdfDoc);
+
+            // Add title
+            Paragraph title = new Paragraph("SHREE RANGA TRADERS")
+                    .setFontSize(20)
+                    .setBold()
+                    .setTextAlignment(TextAlignment.CENTER);
+            document.add(title);
+
+            Paragraph subtitle = new Paragraph("Purchases Report")
+                    .setFontSize(16)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setMarginBottom(10);
+            document.add(subtitle);
+
+            // Add search criteria
+            if (shopName != null && !shopName.isEmpty()) {
+                document.add(new Paragraph("Shop: " + shopName)
+                        .setFontSize(12)
+                        .setBold());
+            }
+
+            if (startDate != null || endDate != null) {
+                String dateRange = "Date Range: ";
+                if (startDate != null && endDate != null) {
+                    dateRange += startDate.format(DATE_FORMATTER) + " to " + endDate.format(DATE_FORMATTER);
+                } else if (startDate != null) {
+                    dateRange += "From " + startDate.format(DATE_FORMATTER);
+                } else {
+                    dateRange += "Until " + endDate.format(DATE_FORMATTER);
+                }
+                document.add(new Paragraph(dateRange)
+                        .setFontSize(12)
+                        .setBold()
+                        .setMarginBottom(15));
+            }
+
+            document.add(new Paragraph("Generated on: " + LocalDate.now().format(DATE_FORMATTER))
+                    .setFontSize(10)
+                    .setMarginBottom(20));
+
+            // Create table
+            float[] columnWidths = {15, 20, 20, 10, 15, 10, 15};
+            Table table = new Table(UnitValue.createPercentArray(columnWidths));
+            table.setWidth(UnitValue.createPercentValue(100));
+
+            // Add table headers
+            String[] headers = {"Date", "Shop Name", "Items", "Bags", "Amount", "Discount", "Net Amount"};
+            for (String header : headers) {
+                Cell cell = new Cell()
+                        .add(new Paragraph(header).setBold())
+                        .setBackgroundColor(ColorConstants.LIGHT_GRAY)
+                        .setTextAlignment(TextAlignment.CENTER);
+                table.addHeaderCell(cell);
+            }
+
+            // Add data rows and calculate totals
+            int totalBags = 0;
+            BigDecimal totalAmount = BigDecimal.ZERO;
+            BigDecimal totalDiscount = BigDecimal.ZERO;
+            BigDecimal totalNetAmount = BigDecimal.ZERO;
+
+            for (Purchase purchase : purchasesList) {
+                BigDecimal discount = purchase.getDiscount() != null ? purchase.getDiscount() : BigDecimal.ZERO;
+                BigDecimal netAmount = purchase.getAmount().subtract(discount);
+
+                table.addCell(new Cell().add(new Paragraph(purchase.getPurchaseDate().format(DATE_FORMATTER)))
+                        .setTextAlignment(TextAlignment.CENTER));
+                table.addCell(new Cell().add(new Paragraph(purchase.getShopName())));
+                table.addCell(new Cell().add(new Paragraph(purchase.getItems())));
+                table.addCell(new Cell().add(new Paragraph(String.valueOf(purchase.getBags())))
+                        .setTextAlignment(TextAlignment.CENTER));
+                table.addCell(new Cell().add(new Paragraph(String.format("%.2f", purchase.getAmount())))
+                        .setTextAlignment(TextAlignment.RIGHT));
+                table.addCell(new Cell().add(new Paragraph(String.format("%.2f", discount)))
+                        .setTextAlignment(TextAlignment.RIGHT));
+                table.addCell(new Cell().add(new Paragraph(String.format("%.2f", netAmount)))
+                        .setTextAlignment(TextAlignment.RIGHT));
+
+                totalBags += purchase.getBags();
+                totalAmount = totalAmount.add(purchase.getAmount());
+                totalDiscount = totalDiscount.add(discount);
+                totalNetAmount = totalNetAmount.add(netAmount);
+            }
+
+            // Add totals row
+            table.addCell(new Cell(1, 3)
+                    .add(new Paragraph("TOTALS:").setBold())
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBackgroundColor(ColorConstants.LIGHT_GRAY));
+            table.addCell(new Cell()
+                    .add(new Paragraph(String.valueOf(totalBags)).setBold())
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setBackgroundColor(ColorConstants.LIGHT_GRAY));
+            table.addCell(new Cell()
+                    .add(new Paragraph(String.format("%.2f", totalAmount)).setBold())
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBackgroundColor(ColorConstants.LIGHT_GRAY));
+            table.addCell(new Cell()
+                    .add(new Paragraph(String.format("%.2f", totalDiscount)).setBold())
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBackgroundColor(ColorConstants.LIGHT_GRAY));
+            table.addCell(new Cell()
+                    .add(new Paragraph(String.format("%.2f", totalNetAmount)).setBold())
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBackgroundColor(ColorConstants.LIGHT_GRAY));
+
+            document.add(table);
+
+            // Add summary section
+            document.add(new Paragraph("\nSummary:")
+                    .setFontSize(14)
+                    .setBold()
+                    .setMarginTop(20));
+            document.add(new Paragraph("Total Bags: " + totalBags)
+                    .setFontSize(12));
+            document.add(new Paragraph("Total Amount: ₹" + String.format("%.2f", totalAmount))
+                    .setFontSize(12));
+            document.add(new Paragraph("Total Discount: ₹" + String.format("%.2f", totalDiscount))
+                    .setFontSize(12));
+            document.add(new Paragraph("Net Amount: ₹" + String.format("%.2f", totalNetAmount))
+                    .setFontSize(12));
+
+            document.close();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating PDF", e);
+        }
+
+        return baos.toByteArray();
+    }
+}

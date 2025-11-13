@@ -37,6 +37,28 @@ public class PurchasePaymentController {
         return ResponseEntity.ok(history);
     }
     
+    @GetMapping("/payment/{id}")
+    public ResponseEntity<PurchasePaymentHistory> getPaymentById(@PathVariable Long id) {
+        PurchasePaymentHistory payment = purchasePaymentService.getPaymentById(id);
+        return ResponseEntity.ok(payment);
+    }
+
+    @PutMapping("/payment/{id}")
+    public ResponseEntity<Void> updatePayment(@PathVariable Long id, @RequestBody Map<String, Object> paymentData) {
+        BigDecimal amount = new BigDecimal(paymentData.get("amount").toString());
+        LocalDate paymentDate = LocalDate.parse(paymentData.get("paymentDate").toString());
+        String note = (String) paymentData.get("note");
+
+        purchasePaymentService.updatePayment(id, amount, paymentDate, note);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/payment/{id}")
+    public ResponseEntity<Void> deletePayment(@PathVariable Long id) {
+        purchasePaymentService.deletePayment(id);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/payment")
     public ResponseEntity<Void> recordPayment(@RequestBody Map<String, Object> paymentData) {
         String shopName = (String) paymentData.get("shopName");

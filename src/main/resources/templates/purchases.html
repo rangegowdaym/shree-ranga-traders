@@ -117,6 +117,9 @@
         <div class="row mb-3">
             <div class="col-md-12">
                 <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-search"></i> Search Purchases</h5>
+                    </div>
                     <div class="card-body">
                         <form id="searchForm" class="row g-3">
                             <div class="col-md-3">
@@ -129,7 +132,9 @@
                             </div>
                             <div class="col-md-3">
                                 <label for="searchShopName" class="form-label">Shop Name</label>
-                                <input type="text" class="form-control" id="searchShopName">
+                                <select class="form-select" id="searchShopName">
+                                    <option value="">Select Shop</option>
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">&nbsp;</label>
@@ -139,6 +144,9 @@
                                     </button>
                                     <button type="button" class="btn btn-secondary" id="resetBtn">
                                         <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="exportPdfBtn">
+                                        <i class="fas fa-file-pdf"></i> Export to PDF
                                     </button>
                                 </div>
                             </div>
@@ -160,7 +168,6 @@
                             <table class="table table-striped table-hover">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>ID</th>
                                         <th>Date</th>
                                         <th>Shop Name</th>
                                         <th>Items</th>
@@ -176,7 +183,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="table-info fw-bold">
-                                        <td colspan="4" class="text-end">TOTALS:</td>
+                                        <td colspan="3" class="text-end">TOTALS:</td>
                                         <td id="totalBags">0</td>
                                         <td id="totalAmount">0.00</td>
                                         <td id="totalDiscount">0.00</td>
@@ -187,6 +194,43 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Totals Modal -->
+    <div class="modal fade" id="totalsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Purchase Summary</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 id="modalShopName" class="mb-3"></h6>
+                    <p id="modalDateRange" class="text-muted"></p>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card text-center mb-3">
+                                <div class="card-body bg-info text-white">
+                                    <h5 class="card-title">Total Bags</h5>
+                                    <h2 id="modalTotalBags">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card text-center mb-3">
+                                <div class="card-body bg-success text-white">
+                                    <h5 class="card-title">Total Amount</h5>
+                                    <h2 id="modalTotalAmount">₹0.00</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -215,6 +259,7 @@
     <script>
         let deleteId = null;
         const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        const totalsModal = new bootstrap.Modal(document.getElementById('totalsModal'));
 
         // Load purchases on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -231,9 +276,14 @@
                 const response = await fetch('/api/shops');
                 const shops = await response.json();
                 const shopSelect = document.getElementById('shopName');
+                const searchShopSelect = document.getElementById('searchShopName');
+
                 shopSelect.innerHTML = '<option value="">Select Shop</option>';
+                searchShopSelect.innerHTML = '<option value="">Select Shop</option>';
+
                 shops.forEach(shop => {
                     shopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
+                    searchShopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
                 });
             } catch (error) {
                 console.error('Error loading shops:', error);
@@ -309,9 +359,60 @@
                 const response = await fetch(url);
                 const purchases = await response.json();
                 displayPurchases(purchases);
+
+                // Show totals modal if date range and shop name are provided
+                if ((startDate || endDate) && shopName) {
+                    showTotalsModal(purchases, startDate, endDate, shopName);
+                }
             } catch (error) {
                 console.error('Error:', error);
             }
+        });
+
+        // Show totals modal
+        function showTotalsModal(purchases, startDate, endDate, shopName) {
+            let totalBags = 0;
+            let totalAmount = 0;
+
+            purchases.forEach(purchase => {
+                totalBags += purchase.bags;
+                totalAmount += purchase.amount - (purchase.discount || 0);
+            });
+
+            // Set modal content
+            document.getElementById('modalShopName').textContent = `Shop: ${shopName}`;
+
+            let dateRangeText = 'Date Range: ';
+            if (startDate && endDate) {
+                dateRangeText += `${formatDate(startDate)} to ${formatDate(endDate)}`;
+            } else if (startDate) {
+                dateRangeText += `From ${formatDate(startDate)}`;
+            } else if (endDate) {
+                dateRangeText += `Until ${formatDate(endDate)}`;
+            } else {
+                dateRangeText += 'All Dates';
+            }
+            document.getElementById('modalDateRange').textContent = dateRangeText;
+
+            document.getElementById('modalTotalBags').textContent = totalBags;
+            document.getElementById('modalTotalAmount').textContent = `₹${totalAmount.toFixed(2)}`;
+
+            totalsModal.show();
+        }
+
+        // Export to PDF button
+        document.getElementById('exportPdfBtn').addEventListener('click', function() {
+            const startDate = document.getElementById('searchStartDate').value;
+            const endDate = document.getElementById('searchEndDate').value;
+            const shopName = document.getElementById('searchShopName').value;
+
+            let url = '/api/purchases/export/pdf?';
+            if (startDate) url += `startDate=${startDate}&`;
+            if (endDate) url += `endDate=${endDate}&`;
+            if (shopName) url += `shopName=${shopName}&`;
+
+            // Open PDF in new window/tab for download
+            window.open(url, '_blank');
         });
 
         // Reset button
@@ -347,14 +448,13 @@
 
                 const row = `
                     <tr>
-                        <td>${purchase.id}</td>
                         <td>${formatDate(purchase.purchaseDate)}</td>
                         <td>${purchase.shopName}</td>
                         <td>${purchase.items}</td>
                         <td>${purchase.bags}</td>
-                        <td>${purchase.amount.toFixed(2)}</td>
-                        <td>${(purchase.discount || 0).toFixed(2)}</td>
-                        <td>${netAmount.toFixed(2)}</td>
+                        <td>₹${purchase.amount.toFixed(2)}</td>
+                        <td>₹${(purchase.discount || 0).toFixed(2)}</td>
+                        <td>₹${netAmount.toFixed(2)}</td>
                         <td>
                             <button class="btn btn-sm btn-primary" onclick="editPurchase(${purchase.id})">
                                 <i class="fas fa-edit"></i>
