@@ -32,7 +32,7 @@ public class SalesService {
 
         // Update customer balance if CREDIT
         if (sale.getPaymentType() == Sales.PaymentType.CREDIT) {
-            updateCustomerBalance(sale.getCustomerName(), sale.getAmount(), "Sale added - " + saved.getItem());
+            updateCustomerBalance(sale.getCustomerName(), sale.getAmount(), PaymentHistory.TransactionType.SALE, "Sale added - " + saved.getItem());
         }
 
         return saved;
@@ -60,7 +60,7 @@ public class SalesService {
 
         // Adjust customer balance
         if (difference.compareTo(BigDecimal.ZERO) != 0) {
-            updateCustomerBalance(sale.getCustomerName(), difference, "Sale updated - " + sale.getItem());
+            updateCustomerBalance(sale.getCustomerName(), difference, PaymentHistory.TransactionType.ADJUSTMENT, "Sale updated - " + sale.getItem());
         }
 
         return updated;
@@ -76,7 +76,7 @@ public class SalesService {
 
         // Reverse customer balance if CREDIT
         if (sale.getPaymentType() == Sales.PaymentType.CREDIT) {
-            updateCustomerBalance(sale.getCustomerName(), sale.getAmount().negate(), "Sale deleted - " + sale.getItem());
+            updateCustomerBalance(sale.getCustomerName(), sale.getAmount().negate(), PaymentHistory.TransactionType.ADJUSTMENT, "Sale deleted - " + sale.getItem());
         }
     }
 
@@ -93,7 +93,7 @@ public class SalesService {
         return salesRepository.searchSales(startDate, endDate, customerName);
     }
 
-    private void updateCustomerBalance(String customerName, BigDecimal amount, String note) {
+    private void updateCustomerBalance(String customerName, BigDecimal amount, PaymentHistory.TransactionType transactionType, String note) {
         SalesPayment salesPayment = salesPaymentRepository.findByCustomerName(customerName)
                 .orElseGet(() -> {
                     SalesPayment newPayment = new SalesPayment();
@@ -109,7 +109,7 @@ public class SalesService {
         // Create history record
         PaymentHistory history = new PaymentHistory();
         history.setCustomerName(customerName);
-        history.setType(PaymentHistory.TransactionType.SALE);
+        history.setType(transactionType);
         history.setAmount(amount);
         history.setBalanceAfter(newBalance);
         history.setNote(note);
