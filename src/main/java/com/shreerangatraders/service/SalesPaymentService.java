@@ -33,8 +33,8 @@ public class SalesPaymentService {
         return paymentHistoryRepository.findByCustomerNameOrderByPaymentDateDesc(customerName);
     }
     
-    public List<PaymentHistory> searchHistory(String customerName, PaymentHistory.TransactionType type) {
-        return paymentHistoryRepository.searchByCustomerAndType(customerName, type);
+    public List<PaymentHistory> searchHistory(String customerName, PaymentHistory.TransactionType type, LocalDate startDate) {
+        return paymentHistoryRepository.searchByCustomerAndTypeAndDate(customerName, type, startDate);
     }
 
     public PaymentHistory getPaymentById(Long id) {

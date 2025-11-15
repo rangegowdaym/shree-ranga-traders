@@ -115,13 +115,17 @@
                     </div>
                     <div class="card-body p-4">
                         <form id="searchForm" class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="searchStartDate" class="form-label">From Date (>=)</label>
+                                <input type="date" class="form-control" id="searchStartDate">
+                            </div>
+                            <div class="col-md-3">
                                 <label for="searchCustomerName" class="form-label">Customer Name</label>
                                 <select class="form-select" id="searchCustomerName">
                                     <option value="">All Customers</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label for="searchType" class="form-label">Type</label>
                                 <select class="form-select" id="searchType">
                                     <option value="">All Types</option>
@@ -130,7 +134,7 @@
                                     <option value="ADJUSTMENT">ADJUSTMENT</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">&nbsp;</label>
                                 <div>
                                     <button type="submit" class="btn btn-primary">
@@ -138,6 +142,9 @@
                                     </button>
                                     <button type="button" class="btn btn-secondary" id="resetSearchBtn">
                                         <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="exportPdfBtn">
+                                        <i class="fas fa-file-pdf"></i> Export to PDF
                                     </button>
                                 </div>
                             </div>
@@ -331,12 +338,13 @@
             }
         }
 
-        // Load filtered history by customer name and/or type
-        async function loadFilteredHistory(customerName = '', type = '') {
+        // Load filtered history by customer name, type, and/or date
+        async function loadFilteredHistory(customerName = '', type = '', startDate = '') {
             try {
                 const params = new URLSearchParams();
                 if (customerName) params.append('customerName', customerName);
                 if (type) params.append('type', type);
+                if (startDate) params.append('startDate', startDate);
 
                 const url = params.toString()
                     ? `/api/sales-payments/history/search?${params.toString()}`
@@ -438,8 +446,9 @@
             e.preventDefault();
             const customerName = document.getElementById('searchCustomerName').value;
             const type = document.getElementById('searchType').value;
+            const startDate = document.getElementById('searchStartDate').value;
 
-            await loadFilteredHistory(customerName, type);
+            await loadFilteredHistory(customerName, type, startDate);
 
             // Show customer balance only if a specific customer is selected
             if (customerName) {
@@ -457,6 +466,21 @@
             selectedCustomer = null;
             hideCustomerBalance();
             loadHistory();
+        });
+
+        // Export to PDF button
+        document.getElementById('exportPdfBtn').addEventListener('click', function() {
+            const customerName = document.getElementById('searchCustomerName').value;
+            const type = document.getElementById('searchType').value;
+            const startDate = document.getElementById('searchStartDate').value;
+
+            let url = '/api/sales-payments/export/pdf?';
+            if (customerName) url += `customerName=${encodeURIComponent(customerName)}&`;
+            if (type) url += `type=${type}&`;
+            if (startDate) url += `startDate=${startDate}&`;
+
+            // Open PDF in new window/tab for download
+            window.open(url, '_blank');
         });
 
         // Select customer for payment

@@ -130,7 +130,7 @@
                                     <option value="ADJUSTMENT">ADJUSTMENT</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-5">
                                 <label class="form-label">&nbsp;</label>
                                 <div>
                                     <button type="submit" class="btn btn-primary">
@@ -138,6 +138,9 @@
                                     </button>
                                     <button type="button" class="btn btn-secondary" id="resetSearchBtn">
                                         <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                    <button type="button" class="btn btn-danger" id="exportPdfBtn">
+                                        <i class="fas fa-file-pdf"></i> Export to PDF
                                     </button>
                                 </div>
                             </div>
@@ -452,6 +455,19 @@
             selectedShop = null;
             hideShopBalance();
             loadHistory();
+        });
+
+        // Export to PDF button
+        document.getElementById('exportPdfBtn').addEventListener('click', function() {
+            const shopName = document.getElementById('searchShopName').value;
+            const type = document.getElementById('searchType').value;
+
+            let url = '/api/purchase-payments/export/pdf?';
+            if (shopName) url += `shopName=${shopName}&`;
+            if (type) url += `type=${type}&`;
+
+            // Open PDF in new window/tab for download
+            window.open(url, '_blank');
         });
 
         // Edit payment

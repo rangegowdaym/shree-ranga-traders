@@ -11,6 +11,8 @@ import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.shreerangatraders.entity.Sales;
 import com.shreerangatraders.entity.Purchase;
+import com.shreerangatraders.entity.PaymentHistory;
+import com.shreerangatraders.entity.PurchasePaymentHistory;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -273,6 +275,224 @@ public class PdfExportService {
             document.add(new Paragraph("Total Discount: ₹" + String.format("%.2f", totalDiscount))
                     .setFontSize(12));
             document.add(new Paragraph("Net Amount: ₹" + String.format("%.2f", totalNetAmount))
+                    .setFontSize(12));
+
+            document.close();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating PDF", e);
+        }
+
+        return baos.toByteArray();
+    }
+
+    public byte[] generateSalesPaymentPdf(List<PaymentHistory> paymentHistoryList, String customerName,
+                                          PaymentHistory.TransactionType type) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        try {
+            PdfWriter writer = new PdfWriter(baos);
+            PdfDocument pdfDoc = new PdfDocument(writer);
+            Document document = new Document(pdfDoc);
+
+            // Add title
+            Paragraph title = new Paragraph("SHREE RANGA TRADERS")
+                    .setFontSize(20)
+                    .setBold()
+                    .setTextAlignment(TextAlignment.CENTER);
+            document.add(title);
+
+            Paragraph subtitle = new Paragraph("Sales Payment History Report")
+                    .setFontSize(16)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setMarginBottom(10);
+            document.add(subtitle);
+
+            // Add search criteria
+            if (customerName != null && !customerName.isEmpty()) {
+                document.add(new Paragraph("Customer: " + customerName)
+                        .setFontSize(12)
+                        .setBold());
+            }
+
+            if (type != null) {
+                document.add(new Paragraph("Transaction Type: " + type.toString())
+                        .setFontSize(12)
+                        .setBold());
+            }
+
+            document.add(new Paragraph("Generated on: " + LocalDate.now().format(DATE_FORMATTER))
+                    .setFontSize(10)
+                    .setMarginBottom(20));
+
+            // Create table
+            float[] columnWidths = {15, 25, 15, 15, 15, 15};
+            Table table = new Table(UnitValue.createPercentArray(columnWidths));
+            table.setWidth(UnitValue.createPercentValue(100));
+
+            // Add table headers
+            String[] headers = {"Date", "Customer Name", "Type", "Amount", "Balance After", "Note"};
+            for (String header : headers) {
+                Cell cell = new Cell()
+                        .add(new Paragraph(header).setBold())
+                        .setBackgroundColor(ColorConstants.LIGHT_GRAY)
+                        .setTextAlignment(TextAlignment.CENTER);
+                table.addHeaderCell(cell);
+            }
+
+            // Add data rows and calculate totals
+            BigDecimal totalPayments = BigDecimal.ZERO;
+            BigDecimal totalSales = BigDecimal.ZERO;
+            BigDecimal totalAdjustments = BigDecimal.ZERO;
+
+            for (PaymentHistory payment : paymentHistoryList) {
+                table.addCell(new Cell().add(new Paragraph(payment.getPaymentDate().format(DATE_FORMATTER)))
+                        .setTextAlignment(TextAlignment.CENTER));
+                table.addCell(new Cell().add(new Paragraph(payment.getCustomerName())));
+                table.addCell(new Cell().add(new Paragraph(payment.getType().toString()))
+                        .setTextAlignment(TextAlignment.CENTER));
+                table.addCell(new Cell().add(new Paragraph(String.format("%.2f", payment.getAmount())))
+                        .setTextAlignment(TextAlignment.RIGHT));
+                table.addCell(new Cell().add(new Paragraph(String.format("%.2f", payment.getBalanceAfter())))
+                        .setTextAlignment(TextAlignment.RIGHT));
+                table.addCell(new Cell().add(new Paragraph(payment.getNote() != null ? payment.getNote() : "")));
+
+                // Calculate totals by type
+                switch (payment.getType()) {
+                    case PAYMENT:
+                        totalPayments = totalPayments.add(payment.getAmount());
+                        break;
+                    case SALE:
+                        totalSales = totalSales.add(payment.getAmount());
+                        break;
+                    case ADJUSTMENT:
+                        totalAdjustments = totalAdjustments.add(payment.getAmount());
+                        break;
+                }
+            }
+
+            document.add(table);
+
+            // Add summary section
+            document.add(new Paragraph("\nSummary:")
+                    .setFontSize(14)
+                    .setBold()
+                    .setMarginTop(20));/*
+            document.add(new Paragraph("Total Records: " + paymentHistoryList.size())
+                    .setFontSize(12));
+            document.add(new Paragraph("Total Sales: ₹" + String.format("%.2f", totalSales))
+                    .setFontSize(12));*/
+            document.add(new Paragraph("Total Payments: ₹" + String.format("%.2f", totalPayments))
+                    .setFontSize(12));
+            document.add(new Paragraph("Total Balance: ₹" + String.format("%.2f", totalAdjustments))
+                    .setFontSize(12));
+
+            document.close();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating PDF", e);
+        }
+
+        return baos.toByteArray();
+    }
+
+    public byte[] generatePurchasePaymentPdf(List<PurchasePaymentHistory> paymentHistoryList, String shopName,
+                                             PurchasePaymentHistory.TransactionType type) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        try {
+            PdfWriter writer = new PdfWriter(baos);
+            PdfDocument pdfDoc = new PdfDocument(writer);
+            Document document = new Document(pdfDoc);
+
+            // Add title
+            Paragraph title = new Paragraph("SHREE RANGA TRADERS")
+                    .setFontSize(20)
+                    .setBold()
+                    .setTextAlignment(TextAlignment.CENTER);
+            document.add(title);
+
+            Paragraph subtitle = new Paragraph("Purchase Payment History Report")
+                    .setFontSize(16)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setMarginBottom(10);
+            document.add(subtitle);
+
+            // Add search criteria
+            if (shopName != null && !shopName.isEmpty()) {
+                document.add(new Paragraph("Shop: " + shopName)
+                        .setFontSize(12)
+                        .setBold());
+            }
+
+            if (type != null) {
+                document.add(new Paragraph("Transaction Type: " + type.toString())
+                        .setFontSize(12)
+                        .setBold());
+            }
+
+            document.add(new Paragraph("Generated on: " + LocalDate.now().format(DATE_FORMATTER))
+                    .setFontSize(10)
+                    .setMarginBottom(20));
+
+            // Create table
+            float[] columnWidths = {15, 25, 15, 15, 15, 15};
+            Table table = new Table(UnitValue.createPercentArray(columnWidths));
+            table.setWidth(UnitValue.createPercentValue(100));
+
+            // Add table headers
+            String[] headers = {"Date", "Shop Name", "Type", "Amount", "Balance After", "Note"};
+            for (String header : headers) {
+                Cell cell = new Cell()
+                        .add(new Paragraph(header).setBold())
+                        .setBackgroundColor(ColorConstants.LIGHT_GRAY)
+                        .setTextAlignment(TextAlignment.CENTER);
+                table.addHeaderCell(cell);
+            }
+
+            // Add data rows and calculate totals
+            BigDecimal totalPayments = BigDecimal.ZERO;
+            BigDecimal totalPurchases = BigDecimal.ZERO;
+            BigDecimal totalAdjustments = BigDecimal.ZERO;
+
+            for (PurchasePaymentHistory payment : paymentHistoryList) {
+                table.addCell(new Cell().add(new Paragraph(payment.getPaymentDate().format(DATE_FORMATTER)))
+                        .setTextAlignment(TextAlignment.CENTER));
+                table.addCell(new Cell().add(new Paragraph(payment.getShopName())));
+                table.addCell(new Cell().add(new Paragraph(payment.getType().toString()))
+                        .setTextAlignment(TextAlignment.CENTER));
+                table.addCell(new Cell().add(new Paragraph(String.format("%.2f", payment.getAmount())))
+                        .setTextAlignment(TextAlignment.RIGHT));
+                table.addCell(new Cell().add(new Paragraph(String.format("%.2f", payment.getBalanceAfter())))
+                        .setTextAlignment(TextAlignment.RIGHT));
+                table.addCell(new Cell().add(new Paragraph(payment.getNote() != null ? payment.getNote() : "")));
+
+                // Calculate totals by type
+                switch (payment.getType()) {
+                    case PAYMENT:
+                        totalPayments = totalPayments.add(payment.getAmount());
+                        break;
+                    case PURCHASE:
+                        totalPurchases = totalPurchases.add(payment.getAmount());
+                        break;
+                    case ADJUSTMENT:
+                        totalAdjustments = totalAdjustments.add(payment.getAmount());
+                        break;
+                }
+            }
+
+            document.add(table);
+
+            // Add summary section
+            document.add(new Paragraph("\nSummary:")
+                    .setFontSize(14)
+                    .setBold()
+                    .setMarginTop(20));/*
+            document.add(new Paragraph("Total Records: " + paymentHistoryList.size())
+                    .setFontSize(12));
+            document.add(new Paragraph("Total Purchases: ₹" + String.format("%.2f", totalPurchases))
+                    .setFontSize(12));*/
+            document.add(new Paragraph("Total Payments: ₹" + String.format("%.2f", totalPayments))
+                    .setFontSize(12));
+            document.add(new Paragraph("Total Balance: ₹" + String.format("%.2f", totalAdjustments))
                     .setFontSize(12));
 
             document.close();

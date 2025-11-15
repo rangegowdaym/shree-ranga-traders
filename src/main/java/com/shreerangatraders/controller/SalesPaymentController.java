@@ -3,13 +3,17 @@ package com.shreerangatraders.controller;
 import com.shreerangatraders.entity.SalesPayment;
 import com.shreerangatraders.entity.PaymentHistory;
 import com.shreerangatraders.service.SalesPaymentService;
+import com.shreerangatraders.service.PdfExportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -19,7 +23,8 @@ import java.util.Map;
 public class SalesPaymentController {
     
     private final SalesPaymentService salesPaymentService;
-    
+    private final PdfExportService pdfExportService;
+
     @GetMapping("/balances")
     public ResponseEntity<List<SalesPayment>> getAllBalances() {
         List<SalesPayment> balances = salesPaymentService.getAllBalances();
@@ -41,7 +46,8 @@ public class SalesPaymentController {
     @GetMapping("/history/search")
     public ResponseEntity<List<PaymentHistory>> searchHistory(
             @RequestParam(required = false) String customerName,
-            @RequestParam(required = false) String type) {
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate) {
 
         PaymentHistory.TransactionType transactionType = null;
         if (type != null && !type.isEmpty()) {
@@ -52,7 +58,7 @@ public class SalesPaymentController {
             }
         }
 
-        List<PaymentHistory> history = salesPaymentService.searchHistory(customerName, transactionType);
+        List<PaymentHistory> history = salesPaymentService.searchHistory(customerName, transactionType, startDate);
         return ResponseEntity.ok(history);
     }
 
@@ -98,5 +104,35 @@ public class SalesPaymentController {
         
         salesPaymentService.recordAdjustment(customerName, amount, adjustmentDate, note);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/export/pdf")
+    public ResponseEntity<byte[]> exportSalesPaymentToPdf(
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate) {
+
+        PaymentHistory.TransactionType transactionType = null;
+        if (type != null && !type.isEmpty()) {
+            try {
+                transactionType = PaymentHistory.TransactionType.valueOf(type);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        List<PaymentHistory> history = salesPaymentService.searchHistory(customerName, transactionType, startDate);
+        byte[] pdfBytes = pdfExportService.generateSalesPaymentPdf(history, customerName, transactionType);
+
+        String filename = "sales_payment_report_" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".pdf";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

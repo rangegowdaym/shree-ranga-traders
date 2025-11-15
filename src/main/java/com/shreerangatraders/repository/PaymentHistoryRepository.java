@@ -21,9 +21,11 @@ public interface PaymentHistoryRepository extends JpaRepository<PaymentHistory, 
     @Query("SELECT ph FROM PaymentHistory ph WHERE " +
            "(:customerName IS NULL OR :customerName = '' OR ph.customerName = :customerName) " +
            "AND (:type IS NULL OR ph.type = :type) " +
+           "AND (:startDate IS NULL OR ph.paymentDate >= :startDate) " +
            "ORDER BY ph.paymentDate DESC, ph.createdDate DESC")
-    List<PaymentHistory> searchByCustomerAndType(
+    List<PaymentHistory> searchByCustomerAndTypeAndDate(
         @Param("customerName") String customerName,
-        @Param("type") PaymentHistory.TransactionType type
+        @Param("type") PaymentHistory.TransactionType type,
+        @Param("startDate") java.time.LocalDate startDate
     );
 }

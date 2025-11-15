@@ -3,12 +3,16 @@ package com.shreerangatraders.controller;
 import com.shreerangatraders.entity.Payment;
 import com.shreerangatraders.entity.PurchasePaymentHistory;
 import com.shreerangatraders.service.PurchasePaymentService;
+import com.shreerangatraders.service.PdfExportService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +22,7 @@ import java.util.Map;
 public class PurchasePaymentController {
     
     private final PurchasePaymentService purchasePaymentService;
-    
+    private final PdfExportService pdfExportService;
     @GetMapping("/balances")
     public ResponseEntity<List<Payment>> getAllBalances() {
         List<Payment> balances = purchasePaymentService.getAllBalances();
@@ -97,5 +101,34 @@ public class PurchasePaymentController {
         
         purchasePaymentService.recordAdjustment(shopName, amount, adjustmentDate, note);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/export/pdf")
+    public ResponseEntity<byte[]> exportPurchasePaymentToPdf(
+            @RequestParam(required = false) String shopName,
+            @RequestParam(required = false) String type) {
+
+        PurchasePaymentHistory.TransactionType transactionType = null;
+        if (type != null && !type.isEmpty()) {
+            try {
+                transactionType = PurchasePaymentHistory.TransactionType.valueOf(type);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        List<PurchasePaymentHistory> history = purchasePaymentService.searchHistory(shopName, transactionType);
+        byte[] pdfBytes = pdfExportService.generatePurchasePaymentPdf(history, shopName, transactionType);
+
+        String filename = "purchase_payment_report_" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".pdf";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }
