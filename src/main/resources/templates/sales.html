@@ -286,7 +286,7 @@
                 const searchCustomerSelect = document.getElementById('searchCustomerName');
 
                 customerSelect.innerHTML = '<option value="">Select Customer</option>';
-                searchCustomerSelect.innerHTML = '<option value="">Select Customer</option>';
+                searchCustomerSelect.innerHTML = '<option value="">All Customers</option>';
 
                 customers.forEach(customer => {
                     customerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
