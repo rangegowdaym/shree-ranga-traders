@@ -118,7 +118,16 @@
                             <div class="col-md-4">
                                 <label for="searchShopName" class="form-label">Shop Name</label>
                                 <select class="form-select" id="searchShopName">
-                                    <option value="">Select Shop</option>
+                                    <option value="">All Shops</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="searchType" class="form-label">Type</label>
+                                <select class="form-select" id="searchType">
+                                    <option value="">All Types</option>
+                                    <option value="PURCHASE">PURCHASE</option>
+                                    <option value="PAYMENT">PAYMENT</option>
+                                    <option value="ADJUSTMENT">ADJUSTMENT</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -223,20 +232,43 @@
         // Load shops for dropdown
         async function loadShops() {
             try {
+                console.log('Fetching shops from /api/shops...');
                 const response = await fetch('/api/shops');
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const shops = await response.json();
+                console.log('Shops loaded:', shops.length, shops);
+
                 const shopSelect = document.getElementById('shopName');
                 const searchShopSelect = document.getElementById('searchShopName');
 
-                shopSelect.innerHTML = '<option value="">Select Shop</option>';
-                searchShopSelect.innerHTML = '<option value="">Select Shop</option>';
+                if (!shopSelect || !searchShopSelect) {
+                    console.error('Shop select elements not found!');
+                    return;
+                }
 
-                shops.forEach(shop => {
-                    shopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
-                    searchShopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
-                });
+                shopSelect.innerHTML = '<option value="">Select Shop</option>';
+                searchShopSelect.innerHTML = '<option value="">All Shops</option>';
+
+                if (shops.length === 0) {
+                    console.warn('No shops found in database. Please add shops in Master Data page.');
+                    shopSelect.innerHTML += '<option value="" disabled>No shops available - Add in Master Data</option>';
+                    searchShopSelect.innerHTML += '<option value="" disabled>No shops available - Add in Master Data</option>';
+                } else {
+                    shops.forEach(shop => {
+                        shopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
+                        searchShopSelect.innerHTML += `<option value="${shop.shopName}">${shop.shopName}</option>`;
+                    });
+                    console.log('Successfully populated shop dropdowns');
+                }
             } catch (error) {
                 console.error('Error loading shops:', error);
+                console.error('Error details:', error.message);
+                alert('Failed to load shops. Please check console for details. Make sure the application is running and MySQL database is accessible.');
             }
         }
 
@@ -289,6 +321,25 @@
                 const url = shopName
                     ? `/api/purchase-payments/history/${encodeURIComponent(shopName)}`
                     : '/api/purchase-payments/history';
+                const response = await fetch(url);
+                const history = await response.json();
+                displayHistory(history);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Load filtered history by shop name and/or type
+        async function loadFilteredHistory(shopName = '', type = '') {
+            try {
+                const params = new URLSearchParams();
+                if (shopName) params.append('shopName', shopName);
+                if (type) params.append('type', type);
+
+                const url = params.toString()
+                    ? `/api/purchase-payments/history/search?${params.toString()}`
+                    : '/api/purchase-payments/history';
+
                 const response = await fetch(url);
                 const history = await response.json();
                 displayHistory(history);
@@ -365,10 +416,7 @@
 
                     // Update badge color based on balance
                     balanceSpan.className = 'badge ' + (balanceAmount > 0 ? 'bg-danger' : 'bg-success');
-
                     document.getElementById('shopBalanceCard').style.display = 'block';
-                } else {
-                    hideShopBalance();
                 }
             } catch (error) {
                 console.error('Error loading shop balance:', error);
@@ -384,11 +432,17 @@
         document.getElementById('searchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const shopName = document.getElementById('searchShopName').value;
+            const type = document.getElementById('searchType').value;
 
+            await loadFilteredHistory(shopName, type);
+
+            // Show shop balance only if a specific shop is selected
             if (shopName) {
-                await filterByShop(shopName);
+                await showShopBalance(shopName);
+                selectedShop = shopName;
             } else {
-                alert('Please select a shop to search');
+                hideShopBalance();
+                selectedShop = null;
             }
         });
 

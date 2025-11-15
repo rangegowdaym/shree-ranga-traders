@@ -118,7 +118,16 @@
                             <div class="col-md-4">
                                 <label for="searchCustomerName" class="form-label">Customer Name</label>
                                 <select class="form-select" id="searchCustomerName">
-                                    <option value="">Select Customer</option>
+                                    <option value="">All Customers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="searchType" class="form-label">Type</label>
+                                <select class="form-select" id="searchType">
+                                    <option value="">All Types</option>
+                                    <option value="SALE">SALE</option>
+                                    <option value="PAYMENT">PAYMENT</option>
+                                    <option value="ADJUSTMENT">ADJUSTMENT</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -224,20 +233,43 @@
         // Load customers for dropdown
         async function loadCustomers() {
             try {
+                console.log('Fetching customers from /api/customers...');
                 const response = await fetch('/api/customers');
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const customers = await response.json();
+                console.log('Customers loaded:', customers.length, customers);
+
                 const customerSelect = document.getElementById('customerName');
                 const searchCustomerSelect = document.getElementById('searchCustomerName');
 
-                customerSelect.innerHTML = '<option value="">Select Customer</option>';
-                searchCustomerSelect.innerHTML = '<option value="">Select Customer</option>';
+                if (!customerSelect || !searchCustomerSelect) {
+                    console.error('Customer select elements not found!');
+                    return;
+                }
 
-                customers.forEach(customer => {
-                    customerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
-                    searchCustomerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
-                });
+                customerSelect.innerHTML = '<option value="">Select Customer</option>';
+                searchCustomerSelect.innerHTML = '<option value="">All Customers</option>';
+
+                if (customers.length === 0) {
+                    console.warn('No customers found in database. Please add customers in Master Data page.');
+                    customerSelect.innerHTML += '<option value="" disabled>No customers available - Add in Master Data</option>';
+                    searchCustomerSelect.innerHTML += '<option value="" disabled>No customers available - Add in Master Data</option>';
+                } else {
+                    customers.forEach(customer => {
+                        customerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
+                        searchCustomerSelect.innerHTML += `<option value="${customer.customerName}">${customer.customerName}</option>`;
+                    });
+                    console.log('Successfully populated customer dropdowns');
+                }
             } catch (error) {
                 console.error('Error loading customers:', error);
+                console.error('Error details:', error.message);
+                alert('Failed to load customers. Please check console for details. Make sure the application is running and MySQL database is accessible.');
             }
         }
 
@@ -291,6 +323,25 @@
                 const url = customerName 
                     ? `/api/sales-payments/history/${encodeURIComponent(customerName)}`
                     : '/api/sales-payments/history';
+                const response = await fetch(url);
+                const history = await response.json();
+                displayHistory(history);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Load filtered history by customer name and/or type
+        async function loadFilteredHistory(customerName = '', type = '') {
+            try {
+                const params = new URLSearchParams();
+                if (customerName) params.append('customerName', customerName);
+                if (type) params.append('type', type);
+
+                const url = params.toString()
+                    ? `/api/sales-payments/history/search?${params.toString()}`
+                    : '/api/sales-payments/history';
+
                 const response = await fetch(url);
                 const history = await response.json();
                 displayHistory(history);
@@ -386,11 +437,17 @@
         document.getElementById('searchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const customerName = document.getElementById('searchCustomerName').value;
+            const type = document.getElementById('searchType').value;
 
+            await loadFilteredHistory(customerName, type);
+
+            // Show customer balance only if a specific customer is selected
             if (customerName) {
-                await filterByCustomer(customerName);
+                await showCustomerBalance(customerName);
+                selectedCustomer = customerName;
             } else {
-                alert('Please select a customer to search');
+                hideCustomerBalance();
+                selectedCustomer = null;
             }
         });
 

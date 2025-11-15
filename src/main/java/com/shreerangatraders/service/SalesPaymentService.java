@@ -33,6 +33,10 @@ public class SalesPaymentService {
         return paymentHistoryRepository.findByCustomerNameOrderByPaymentDateDesc(customerName);
     }
     
+    public List<PaymentHistory> searchHistory(String customerName, PaymentHistory.TransactionType type) {
+        return paymentHistoryRepository.searchByCustomerAndType(customerName, type);
+    }
+
     public PaymentHistory getPaymentById(Long id) {
         return paymentHistoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Payment history not found with id: " + id));

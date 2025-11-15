@@ -33,6 +33,10 @@ public class PurchasePaymentService {
         return purchasePaymentHistoryRepository.findByShopNameOrderByPaymentDateDesc(shopName);
     }
     
+    public List<PurchasePaymentHistory> searchHistory(String shopName, PurchasePaymentHistory.TransactionType type) {
+        return purchasePaymentHistoryRepository.searchByShopAndType(shopName, type);
+    }
+
     public PurchasePaymentHistory getPaymentById(Long id) {
         return purchasePaymentHistoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Payment history not found with id: " + id));

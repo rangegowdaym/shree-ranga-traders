@@ -17,4 +17,13 @@ public interface PurchasePaymentHistoryRepository extends JpaRepository<Purchase
     List<PurchasePaymentHistory> findByShopNameOrderByPaymentDateDesc(@Param("shopName") String shopName);
     
     List<PurchasePaymentHistory> findAllByOrderByPaymentDateDescCreatedDateDesc();
+
+    @Query("SELECT pph FROM PurchasePaymentHistory pph WHERE " +
+           "(:shopName IS NULL OR :shopName = '' OR pph.shopName = :shopName) " +
+           "AND (:type IS NULL OR pph.type = :type) " +
+           "ORDER BY pph.paymentDate DESC, pph.createdDate DESC")
+    List<PurchasePaymentHistory> searchByShopAndType(
+        @Param("shopName") String shopName,
+        @Param("type") PurchasePaymentHistory.TransactionType type
+    );
 }

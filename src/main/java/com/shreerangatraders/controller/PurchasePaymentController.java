@@ -37,6 +37,24 @@ public class PurchasePaymentController {
         return ResponseEntity.ok(history);
     }
     
+    @GetMapping("/history/search")
+    public ResponseEntity<List<PurchasePaymentHistory>> searchHistory(
+            @RequestParam(required = false) String shopName,
+            @RequestParam(required = false) String type) {
+
+        PurchasePaymentHistory.TransactionType transactionType = null;
+        if (type != null && !type.isEmpty()) {
+            try {
+                transactionType = PurchasePaymentHistory.TransactionType.valueOf(type);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+
+        List<PurchasePaymentHistory> history = purchasePaymentService.searchHistory(shopName, transactionType);
+        return ResponseEntity.ok(history);
+    }
+
     @GetMapping("/payment/{id}")
     public ResponseEntity<PurchasePaymentHistory> getPaymentById(@PathVariable Long id) {
         PurchasePaymentHistory payment = purchasePaymentService.getPaymentById(id);
