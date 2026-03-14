@@ -75,13 +75,13 @@ public class PdfExportService {
 
             // Create table
             //float[] columnWidths = {15, 20, 20, 10, 15, 20};
-            float[] columnWidths = {15, 20, 10, 10, 15};
+            float[] columnWidths = {15, 8, 6, 15};
             Table table = new Table(UnitValue.createPercentArray(columnWidths));
             table.setWidth(UnitValue.createPercentValue(100));
 
             // Add table headers
             //String[] headers = {"Date", "Customer Name", "Item", "Bags", "Amount", "Payment Type"};
-            String[] headers = {"Date", "Customer Name", "Item", "Bags", "Amount"};
+            String[] headers = {"Date", "Item", "Bags", "Amount"};
             for (String header : headers) {
                 Cell cell = new Cell()
                         .add(new Paragraph(header).setBold())
@@ -97,7 +97,7 @@ public class PdfExportService {
             for (Sales sale : salesList) {
                 table.addCell(new Cell().add(new Paragraph(sale.getSaleDate().format(DATE_FORMATTER)))
                         .setTextAlignment(TextAlignment.CENTER));
-                table.addCell(new Cell().add(new Paragraph(sale.getCustomerName())).setTextAlignment(TextAlignment.CENTER));
+                //table.addCell(new Cell().add(new Paragraph(sale.getCustomerName())).setTextAlignment(TextAlignment.CENTER));
                 table.addCell(new Cell().add(new Paragraph(sale.getItem())).setTextAlignment(TextAlignment.CENTER));
                 table.addCell(new Cell().add(new Paragraph(String.valueOf(sale.getBags())))
                         .setTextAlignment(TextAlignment.RIGHT));
@@ -111,7 +111,7 @@ public class PdfExportService {
             }
 
             // Add totals row
-            table.addCell(new Cell(1, 3)
+            table.addCell(new Cell(1, 2)
                     .add(new Paragraph("TOTALS:").setBold())
                     .setTextAlignment(TextAlignment.RIGHT)
                     .setBackgroundColor(ColorConstants.LIGHT_GRAY));
